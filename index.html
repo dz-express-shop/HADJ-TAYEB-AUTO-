@@ -168,7 +168,7 @@
                 
                 <div class="flex flex-col items-center justify-center relative z-10 leading-none">
                     <h1 class="text-base font-black tracking-tighter uppercase brand-glow-text font-sans" dir="ltr">HADJ TAYEB AUTO</h1>
-                    <h2 class="text-[10px] font-bold text-white tracking-widest mt-0.5">الحاج طيب </h2>
+                    <h2 class="text-[10px] font-bold text-white tracking-widest mt-0.5">الحاج طيب أوتو</h2>
                 </div>
             </div>
 
@@ -182,7 +182,7 @@
                 <div class="flex flex-col items-center gap-3">
                     <i class="fa-solid fa-shield-halved text-laserred text-5xl animate-pulse-red"></i>
                     <h3 class="text-sm font-black text-white uppercase tracking-wider">نظام حماية الإدارة</h3>
-                    <p class="text-[10px] text-zinc-400 font-bold">يرجى إدخال الرمز السري للمالك لولوج لوحة التحكم</p>
+                    <p class="text-[10px] text-zinc-400 font-bold">يرجى إدخل الرمز السري للمالك لولوج لوحة التحكم</p>
                 </div>
                 <div class="flex justify-center gap-2">
                     <input type="password" maxlength="4" id="pinInput" class="w-40 bg-black border border-white/10 rounded-xl p-3 text-center text-xl tracking-[1.5em] font-black text-laserred focus:outline-none focus:border-laserred focus:shadow-[0_0_15px_rgba(255,0,60,0.3)] transition-all" oninput="handlePinSubmission()" dir="ltr">
@@ -326,11 +326,11 @@
             </div>
             
             <div class="flex overflow-x-auto gap-2 py-1 hide-scrollbar" id="brand-scroller-track" dir="ltr">
-                </div>
+            </div>
         </div>
 
         <main class="p-4 space-y-5" id="cars-grid-feed">
-            </main>
+        </main>
 
         <div class="p-6 border-t border-white/5 bg-neutral-950/40 text-center space-y-6 mt-12 mb-12">
             <div class="space-y-1">
@@ -521,6 +521,25 @@
         </div>
     </div>
 
+    <!-- CUSTOM ALERT MODAL (Resolves Mobile iframe alerts issue) -->
+    <div id="customAlertModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center hidden">
+        <div class="bg-cardgray border border-laserred/30 p-6 rounded-3xl max-w-xs w-full text-center space-y-4 shadow-2xl">
+            <p id="alertMessage" class="text-sm font-bold text-white"></p>
+            <button id="alertCloseBtn" class="bg-laserred text-whitepure font-bold text-xs px-6 py-2.5 rounded-xl active:scale-95 transition-all w-full shadow-[0_4px_10px_rgba(255,0,60,0.3)]">موافق</button>
+        </div>
+    </div>
+
+    <!-- CUSTOM CONFIRM MODAL (Resolves Mobile iframe confirm freeze) -->
+    <div id="customConfirmModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center hidden">
+        <div class="bg-cardgray border border-laserred/30 p-6 rounded-3xl max-w-xs w-full text-center space-y-4 shadow-2xl">
+            <p id="confirmMessage" class="text-sm font-bold text-white"></p>
+            <div class="flex gap-3 justify-center">
+                <button id="confirmYesBtn" class="bg-laserred text-whitepure font-bold text-xs px-5 py-2.5 rounded-xl active:scale-95 transition-all shadow-[0_4px_10px_rgba(255,0,60,0.3)]">نعم، متأكد</button>
+                <button id="confirmNoBtn" class="bg-zinc-800 text-zinc-300 font-bold text-xs px-5 py-2.5 rounded-xl active:scale-95 transition-all">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toastAlert" class="fixed top-6 left-1/2 -translate-x-1/2 z-[100] transform -translate-y-24 opacity-0 transition-all duration-500">
         <div class="bg-cardgray border border-laserred/30 text-white px-5 py-3.5 rounded-full shadow-[0_5px_30px_rgba(255,0,60,0.3)] flex items-center gap-3">
             <i class="fa-solid fa-circle-check text-laserred text-lg"></i>
@@ -528,47 +547,48 @@
         </div>
     </div>
 
-    <script>
-        // =================************************************************=================
-        // HNA DIR LES LIENS TA3 REZO SOCIO S'IL VOUS PLAÎT (أدخل روابطك هنا مباشرة)
-        // =================************************************************=================
+    <!-- ================= MASTER ENGINE CONTROLLER MODULE ================= -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
         const SHOWROOM_CONFIG = {
-            whatsappNumber: "213550038069", // رقم الواتساب بدون + أو أصفار في البداية
-            facebookLink: "#",              // <-- رابط صفحة الفيس بوك (Facebook)
-            instagramLink: "#",             // <-- رابط حساب الانستقرام (Instagram)
-            tiktokLink: "#",                // <-- رابط حساب التيك توك (TikTok)
-            mapsLink: "https://maps.google.com/?q=El+Oued+Algeria" // <-- رابط الموقع على خرائط جوجل لبلدية الوادي
+            whatsappNumber: "213550038069",
+            facebookLink: "#",
+            instagramLink: "#",
+            tiktokLink: "#",
+            mapsLink: "https://maps.google.com/?q=El+Oued+Algeria"
         };
 
-        // داتا السيارات التجريبية للمعرض (معروفة جداً في الجزائر)
         const demoWarehouseVehicles = [
             {
-                id: 1, marque: "TOYOTA", modele: "HILUX Legend", annee: "2024", prix: "890M", km: "12 000 km", moteur: "2.8 D-4D 204ch", boite: "AUTOMATIQUE", couleur: "Blanc Perle",
+                id: "1", marque: "TOYOTA", modele: "HILUX Legend", annee: "2024", prix: "890M", km: "12 000 km", moteur: "2.8 D-4D 204ch", boite: "AUTOMATIQUE", couleur: "Blanc Perle",
                 sbiha: "سيارة نظيفة تماماً، خالية من أي صبيغة أو رتوشات.",
                 sbihaZones: { hood: false, frontDoor: false, backDoor: false, backWing: false, frontWing: false },
-                negociable: true, status: "disponible",
+                negociable: true, status: "disponible", createdAt: 1718000000000,
                 images: ["https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80", "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80"]
             },
             {
-                id: 2, marque: "VOLKSWAGEN", modele: "GOLF 8 GTD", annee: "2023", prix: "920M", km: "22 000 km", moteur: "2.0 TDI 200ch", boite: "AUTOMATIQUE", couleur: "Gris Dauphin",
+                id: "2", marque: "VOLKSWAGEN", modele: "GOLF 8 GTD", annee: "2023", prix: "920M", km: "22 000 km", moteur: "2.0 TDI 200ch", boite: "AUTOMATIQUE", couleur: "Gris Dauphin",
                 sbiha: "فيها راكور خفيف في الباب الخلفي الأيمن بدون معجون.",
                 sbihaZones: { hood: false, frontDoor: false, backDoor: true, backWing: false, frontWing: false },
-                negociable: true, status: "disponible",
+                negociable: true, status: "disponible", createdAt: 1717000000000,
                 images: ["https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=600&q=80", "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80"]
             },
             {
-                id: 3, marque: "SEAT", modele: "IBIZA FR Line", annee: "2021", prix: "390M", km: "85 000 km", moteur: "1.6 MPI 110ch", boite: "MANUELLE", couleur: "Rouge Désir",
+                id: "3", marque: "SEAT", modele: "IBIZA FR Line", annee: "2021", prix: "390M", km: "85 000 km", moteur: "1.6 MPI 110ch", boite: "MANUELLE", couleur: "Rouge Désir",
                 sbiha: "نقية 00 صبيغة، الكابو فيه كربون حماية.",
                 sbihaZones: { hood: false, frontDoor: false, backDoor: false, backWing: false, frontWing: false },
-                negociable: false, status: "vendue",
+                negociable: false, status: "vendue", createdAt: 1716000000000,
                 images: ["https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=600&q=80", "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=600&q=80"]
             }
         ];
 
         let state = {
-            lang: 'ar', // الافتراضي عربي
+            lang: 'ar',
             currentBrand: 'Tous',
-            vehicles: JSON.parse(localStorage.getItem('hadj_tayeb_db')) || demoWarehouseVehicles,
+            vehicles: [],
             activeViewingIndex: null,
             isOwnerSession: localStorage.getItem('isOwnerVerified') === 'true',
             temporaryImages64: []
@@ -599,24 +619,51 @@
             }
         };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            setupIntelligentHoldAnimation();
-            setupHiresOnTheFlyImageCompressor();
-            renderShowroomGrid();
-            buildRepriseTargetDropdown();
-            evalOwnerCockpitUi();
-            setupConfigurationUrls();
-            applyLanguage();
-        });
+        // ================= FIREBASE INITIALIZATION & AUTHENTICATION (RULE 3) =================
+        let db, auth, currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'hadj-tayeb-auto';
 
-        // ربط روابط التواصل من الكونفيج
-        function setupConfigurationUrls() {
-            document.getElementById('nav-insta-link').href = SHOWROOM_CONFIG.instagramLink;
-            document.getElementById('nav-tiktok-link').href = SHOWROOM_CONFIG.tiktokLink;
-            document.getElementById('nav-fb-link').href = SHOWROOM_CONFIG.facebookLink;
-            document.getElementById('nav-gps-link').href = SHOWROOM_CONFIG.mapsLink;
-            document.getElementById('nav-maps-link').href = SHOWROOM_CONFIG.mapsLink;
-        }
+        const setupFirebase = async () => {
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Authenticate (RULE 3)
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth));
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Firebase Initialization Failed:", err);
+            }
+        };
+
+        // ================= CUSTOM IFRAME DIALOG SYSTEM (Resolves mobile freeze) =================
+        window.showCustomConfirm = function(msg, onConfirm) {
+            const modal = document.getElementById('customConfirmModal');
+            document.getElementById('confirmMessage').innerText = msg;
+            modal.classList.remove('hidden');
+            
+            document.getElementById('confirmYesBtn').onclick = () => {
+                modal.classList.add('hidden');
+                onConfirm();
+            };
+            document.getElementById('confirmNoBtn').onclick = () => {
+                modal.classList.add('hidden');
+            };
+        };
+
+        window.showCustomAlert = function(msg) {
+            const modal = document.getElementById('customAlertModal');
+            document.getElementById('alertMessage').innerText = msg;
+            modal.classList.remove('hidden');
+            document.getElementById('alertCloseBtn').onclick = () => {
+                modal.classList.add('hidden');
+            };
+        };
 
         // ================= INTUITIVE HOLD ANIMATION =================
         function setupIntelligentHoldAnimation() {
@@ -627,11 +674,9 @@
 
             const startHold = (e) => {
                 e.preventDefault(); 
-                
                 svg.classList.remove('opacity-0');
                 svg.classList.add('opacity-100');
                 trigger.classList.add('holding');
-                
                 bar.style.transition = 'stroke-dashoffset 3s linear';
                 bar.style.strokeDashoffset = '0';
 
@@ -642,21 +687,16 @@
                 }, 3000);
             };
 
-            const abortHold = () => {
-                resetHold();
-            };
-
+            const abortHold = () => { resetHold(); };
             const resetHold = () => {
                 if (holdTimer) clearTimeout(holdTimer);
                 svg.classList.add('opacity-0');
                 svg.classList.remove('opacity-100');
                 trigger.classList.remove('holding');
-                
                 bar.style.transition = 'none';
                 bar.style.strokeDashoffset = '283'; 
             };
 
-            // Touch & Mouse
             trigger.addEventListener('touchstart', startHold, {passive: false});
             trigger.addEventListener('touchend', abortHold);
             trigger.addEventListener('touchcancel', abortHold);
@@ -686,7 +726,7 @@
                 document.getElementById('ownerCommandCenter').scrollIntoView({ behavior: 'smooth' });
                 input.value = '';
             } else if (input.value.length === 4) {
-                alert("الرمز السري غير صحيح.");
+                showCustomAlert("الرمز السري غير صحيح.");
                 input.value = '';
             }
         }
@@ -736,34 +776,45 @@
                         reader.onload = function(evt) {
                             const img = new Image();
                             img.onload = function() {
-                                const canvas = document.createElement('canvas');
-                                const ctx = canvas.getContext('2d');
-                                
-                                const limitDim = 800;
-                                let w = img.width;
-                                let h = img.height;
-                                
-                                if (w > h) {
-                                    if (w > limitDim) {
-                                        h *= limitDim / w;
-                                        w = limitDim;
+                                try {
+                                    const canvas = document.createElement('canvas');
+                                    const ctx = canvas.getContext('2d');
+                                    
+                                    const limitDim = 800;
+                                    let w = img.width;
+                                    let h = img.height;
+                                    
+                                    if (w > h) {
+                                        if (w > limitDim) {
+                                            h *= limitDim / w;
+                                            w = limitDim;
+                                        }
+                                    } else {
+                                        if (h > limitDim) {
+                                            w *= limitDim / h;
+                                            h = limitDim;
+                                        }
                                     }
-                                } else {
-                                    if (h > limitDim) {
-                                        w *= limitDim / h;
-                                        h = limitDim;
-                                    }
+
+                                    canvas.width = w;
+                                    canvas.height = h;
+                                    ctx.drawImage(img, 0, 0, w, h);
+                                    
+                                    const base64Webp = canvas.toDataURL('image/jpeg', 0.65);
+                                    state.temporaryImages64.push(base64Webp);
+                                    resolved++;
+                                    document.getElementById('compressorLog').innerText = `تم تجهيز ${resolved}/${files.length} صور بنجاح`;
+                                } catch (err) {
+                                    // Fallback immediately on mobile compression memory limit error
+                                    state.temporaryImages64.push(evt.target.result);
+                                    resolved++;
+                                    document.getElementById('compressorLog').innerText = `تم تجهيز ${resolved}/${files.length} صور بنجاح`;
                                 }
-
-                                canvas.width = w;
-                                canvas.height = h;
-                                ctx.drawImage(img, 0, 0, w, h);
-                                
-                                const base64Webp = canvas.toDataURL('image/jpeg', 0.65);
-                                state.temporaryImages64.push(base64Webp);
+                            };
+                            img.onerror = function() {
+                                state.temporaryImages64.push(evt.target.result);
                                 resolved++;
-
-                                document.getElementById('compressorLog').innerText = `تم تجهيز ${resolved}/${files.length} صور بنجاح`;
+                                document.getElementById('compressorLog').innerText = `تم تجهيز ${resolved}/${files.length} صور`;
                             };
                             img.src = evt.target.result;
                         };
@@ -773,15 +824,16 @@
             });
         }
 
-        function processNewLuxuryCar(e) {
+        // ================= FIRESTORE CRUD ACTIONS (RULE 1 & RULE 2) =================
+        async function processNewLuxuryCar(e) {
             e.preventDefault();
             if (state.temporaryImages64.length === 0) {
-                alert("يرجى إرفاق صورة واحدة على الأقل للدراجة.");
+                showCustomAlert("يرجى إرفاق صورة واحدة على الأقل للسيارة.");
                 return;
             }
 
             const freshVehicle = {
-                id: Date.now(),
+                id: String(Date.now()),
                 marque: document.getElementById('addBrand').value.toUpperCase(),
                 modele: document.getElementById('addModel').value,
                 annee: document.getElementById('addYear').value,
@@ -799,43 +851,55 @@
                     backWing: document.getElementById('p_bwing').checked,
                     frontWing: document.getElementById('p_fwing').checked
                 },
-                images: state.temporaryImages64
+                images: state.temporaryImages64,
+                createdAt: Date.now()
             };
 
-            state.vehicles.unshift(freshVehicle);
-            syncStateToLocalStorage();
-            
-            document.getElementById('ownerCarForm').reset();
-            state.temporaryImages64 = [];
-            document.getElementById('compressorLog').innerHTML = "اضغط لرفع صور السيارة بجودة عالية<br><span class='text-zinc-500'>(يتم ضغطها تلقائياً لتسريع الموقع)</span>";
-            
-            triggerToastNotification("تمت إضافة السيارة الجديدة للمعرض.");
-        }
+            try {
+                if (!currentUser) return;
+                // STRICT PATH (RULE 1)
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', freshVehicle.id);
+                await setDoc(docRef, freshVehicle);
 
-        function removeInventoryItem(id) {
-            if (confirm("هل أنت متأكد من حذف هذه السيارة من الكاتالوج بشكل نهائي؟")) {
-                state.vehicles = state.vehicles.filter(v => v.id !== id);
-                syncStateToLocalStorage();
-                triggerToastNotification("تم حذف السيارة من المخزون.");
+                document.getElementById('ownerCarForm').reset();
+                state.temporaryImages64 = [];
+                document.getElementById('compressorLog').innerHTML = "اضغط لرفع صور السيارة بجودة عالية<br><span class='text-zinc-500'>(يتم ضغطها تلقائياً لتسريع الموقع)</span>";
+                
+                triggerToastNotification("تمت إضافة السيارة الجديدة للمعرض.");
+            } catch (err) {
+                console.error("Error writing document to Firestore:", err);
+                showCustomAlert("فشل إضافة السيارة، يرجى المحاولة مرة أخرى.");
             }
         }
 
-        function toggleInventoryStatus(id) {
-            state.vehicles = state.vehicles.map(v => {
-                if (v.id === id) {
-                    v.status = v.status === 'disponible' ? 'vendue' : 'disponible';
+        async function removeInventoryItem(id) {
+            showCustomConfirm("هل أنت متأكد من حذف هذه السيارة من الكاتالوج بشكل نهائي؟", async () => {
+                try {
+                    if (!currentUser) return;
+                    // STRICT PATH (RULE 1)
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
+                    await deleteDoc(docRef);
+                    triggerToastNotification("تم حذف السيارة من المخزون.");
+                } catch (err) {
+                    console.error("Error deleting from Firestore:", err);
                 }
-                return v;
             });
-            syncStateToLocalStorage();
         }
 
-        function syncStateToLocalStorage() {
-            localStorage.setItem('hadj_tayeb_db', JSON.stringify(state.vehicles));
-            renderShowroomGrid();
-            renderAdminStockList();
-            buildRepriseTargetDropdown();
-            calculateCorporateSaaSMetrics();
+        async function toggleInventoryStatus(id) {
+            try {
+                if (!currentUser) return;
+                // STRICT PATH (RULE 1)
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
+                const car = state.vehicles.find(v => v.id === id);
+                if (!car) return;
+
+                const newStatus = car.status === 'disponible' ? 'vendue' : 'disponible';
+                await updateDoc(docRef, { status: newStatus });
+                triggerToastNotification("تم تحديث حالة السيارة بنجاح.");
+            } catch (err) {
+                console.error("Error updating status in Firestore:", err);
+            }
         }
 
         // ================= DYNAMIC TRANSLATION RENDERERS =================
@@ -962,8 +1026,8 @@
                 <div class="card-animate card-premium rounded-[28px] overflow-hidden relative ${sold ? 'grayscale brightness-[45%] border border-zinc-900' : 'border border-white/5'}">
                     ${sold ? `<div class="sold-ribbon">${lexicons[state.lang].soldBadge}</div>` : ''}
 
-                    <div class="relative h-80 w-full" onmouseenter="freezeFeedCarouselScroller(${car.id})" onmouseleave="igniteFeedCarouselScroller(${car.id})">
-                        <div id="feed-image-track-${car.id}" class="swipe-container h-full w-full overflow-x-auto flex snap-x snap-mandatory" dir="ltr" onscroll="syncImageIndicatorTrack(this, ${car.id})" onclick="openDetailSheet(${car.id})">
+                    <div class="relative h-80 w-full" onmouseenter="freezeFeedCarouselScroller('${car.id}')" onmouseleave="igniteFeedCarouselScroller('${car.id}')">
+                        <div id="feed-image-track-${car.id}" class="swipe-container h-full w-full overflow-x-auto flex snap-x snap-mandatory" dir="ltr" onscroll="syncImageIndicatorTrack(this, '${car.id}')" onclick="openDetailSheet('${car.id}')">
                             ${car.images.map(img => `
                                 <div class="swipe-slide h-full w-full snap-center shrink-0 relative">
                                     <img src="${img}" class="w-full h-full object-cover">
@@ -996,7 +1060,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-laserred/10 border-t border-laserred/20 text-laserred hover:bg-laserred hover:text-black text-center py-4 text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all flex items-center justify-center gap-2" onclick="openDetailSheet(${car.id})">
+                    <div class="bg-laserred/10 border-t border-laserred/20 text-laserred hover:bg-laserred hover:text-black text-center py-4 text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all flex items-center justify-center gap-2" onclick="openDetailSheet('${car.id}')">
                         <span>${sold ? lexicons[state.lang].soldBadge : lexicons[state.lang].touchDetails}</span>
                         <i class="fa-solid fa-chevron-up text-[9px] animate-bounce"></i>
                     </div>
@@ -1071,6 +1135,7 @@
 
         function buildRepriseTargetDropdown() {
             const dropdown = document.getElementById('rep-car-target');
+            if (!dropdown) return;
             dropdown.innerHTML = '';
             state.vehicles.forEach(car => {
                 dropdown.innerHTML += `<option value="${car.marque} ${car.modele}" class="bg-neutral-900" dir="ltr">${car.marque} ${car.modele} (${car.prix})</option>`;
@@ -1112,9 +1177,9 @@
             window.open(`https://wa.me/${SHOWROOM_CONFIG.whatsappNumber}?text=${encodeURIComponent(genericMsg)}`, '_blank');
         }
 
-        // ================= OWNER SAAS PANEL (STOCK MANAGER RENDERER WITH SWITCH) =================
         function renderAdminStockList() {
             const container = document.getElementById('adminStockList');
+            if (!container) return;
             container.innerHTML = '';
 
             state.vehicles.forEach(car => {
@@ -1130,15 +1195,27 @@
                     </div>
                     <div class="flex items-center gap-3">
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" class="sr-only toggle-switch-input" onchange="toggleInventoryStatus(${car.id})" ${disponible ? 'checked' : ''}>
+                            <input type="checkbox" class="sr-only toggle-switch-input" id="toggle-inventory-${car.id}" ${disponible ? 'checked' : ''}>
                             <div class="toggle-switch-label w-10 h-5 bg-red-500/20 rounded-full border border-red-500/50 transition-colors relative">
                                 <div class="toggle-switch-dot absolute top-[1px] right-[1px] bg-red-500 w-[16px] h-[16px] rounded-full transition-transform"></div>
                             </div>
                         </label>
                         
-                        <button onclick="removeInventoryItem(${car.id})" class="text-zinc-500 hover:text-red-500 text-xs p-1 ml-1"><i class="fa-solid fa-trash-can"></i></button>
+                        <button id="delete-btn-${car.id}" class="text-zinc-500 hover:text-red-500 text-xs p-1 ml-1"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 </div>`;
+            });
+
+            // Bind events safely inside ESM module
+            state.vehicles.forEach(car => {
+                const toggleInput = document.getElementById(`toggle-inventory-${car.id}`);
+                if (toggleInput) {
+                    toggleInput.addEventListener('change', () => toggleInventoryStatus(car.id));
+                }
+                const delBtn = document.getElementById(`delete-btn-${car.id}`);
+                if (delBtn) {
+                    delBtn.addEventListener('click', () => removeInventoryItem(car.id));
+                }
             });
         }
 
@@ -1147,6 +1224,77 @@
             document.getElementById('toast-txt').innerText = text;
             toast.className = "fixed top-6 left-1/2 -translate-x-1/2 z-[100] transform translate-y-0 opacity-100 transition-all duration-500";
             setTimeout(() => { toast.className = "fixed top-6 left-1/2 -translate-x-1/2 z-[100] transform -translate-y-24 opacity-0 transition-all duration-500"; }, 3000);
+        }
+
+        // Global registration for inline HTML calls
+        window.switchLanguage = switchLanguage;
+        window.setBrandScope = setBrandScope;
+        window.openDetailSheet = openDetailSheet;
+        window.closeDetailSheet = closeDetailSheet;
+        window.openRepriseModal = openRepriseModal;
+        window.closeRepriseModal = closeRepriseModal;
+        window.sendReprisePayload = sendReprisePayload;
+        window.openWhatsappNav = openWhatsappNav;
+        window.switchDetailsTabPane = switchDetailsTabPane;
+        window.lockAdminSession = lockAdminSession;
+        window.syncSwiperImageCounter = syncSwiperImageCounter;
+        window.handlePinSubmission = handlePinSubmission;
+        window.closeBiometricPinOverlay = closeBiometricPinOverlay;
+        window.renderShowroomGrid = renderShowroomGrid;
+        window.processNewLuxuryCar = processNewLuxuryCar;
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', async () => {
+            setupIntelligentHoldAnimation();
+            setupHiresOnTheFlyImageCompressor();
+            setupConfigurationUrls();
+            applyLanguage();
+
+            // Firebase Connection
+            await setupFirebase();
+
+            // REAL-TIME FIRESTORE WORKFLOW (RULE 1 & RULE 2 & RULE 3)
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    const vehiclesCollection = collection(db, 'artifacts', appId, 'public', 'data', 'vehicles');
+                    
+                    // Simple Firestore Query (RULE 2)
+                    onSnapshot(vehiclesCollection, (snapshot) => {
+                        let vehiclesList = [];
+                        snapshot.forEach((doc) => {
+                            vehiclesList.push({ id: doc.id, ...doc.data() });
+                        });
+
+                        // Sort list descendingly by creation date in memory (RULE 2)
+                        vehiclesList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+                        // Seed initial demo data on first-ever load
+                        if (vehiclesList.length === 0) {
+                            demoWarehouseVehicles.forEach(async (v) => {
+                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', v.id);
+                                await setDoc(docRef, v);
+                            });
+                        } else {
+                            state.vehicles = vehiclesList;
+                            renderShowroomGrid();
+                            renderAdminStockList();
+                            buildRepriseTargetDropdown();
+                            calculateCorporateSaaSMetrics();
+                        }
+                    }, (err) => {
+                        console.error("Firestore loading error:", err);
+                    });
+                }
+            });
+        });
+
+        function setupConfigurationUrls() {
+            document.getElementById('nav-insta-link').href = SHOWROOM_CONFIG.instagramLink;
+            document.getElementById('nav-tiktok-link').href = SHOWROOM_CONFIG.tiktokLink;
+            document.getElementById('nav-fb-link').href = SHOWROOM_CONFIG.facebookLink;
+            document.getElementById('nav-gps-link').href = SHOWROOM_CONFIG.mapsLink;
+            document.getElementById('nav-maps-link').href = SHOWROOM_CONFIG.mapsLink;
         }
     </script>
 </body>
