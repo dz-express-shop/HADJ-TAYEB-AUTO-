@@ -330,10 +330,9 @@
         </div>
 
         <main class="p-4 space-y-5" id="cars-grid-feed">
-            <!-- الهيكل المؤقت لتحميل المعرض وحماية الاتصال السحابي -->
             <div id="showroom-loading-skeleton" class="p-8 text-center space-y-4">
                 <i class="fa-solid fa-circle-notch animate-spin text-laserred text-3xl"></i>
-                <p class="text-xs text-zinc-500 font-bold">جاري تحميل المعرض والاتصال بقاعدة البيانات السحابية...</p>
+                <p class="text-xs text-zinc-500 font-bold">جاري تحميل المعرض والاتصال بقاعدة البيانات...</p>
             </div>
         </main>
 
@@ -526,7 +525,7 @@
         </div>
     </div>
 
-    <!-- CUSTOM ALERT MODAL (Resolves Mobile iframe alerts issue) -->
+    <!-- CUSTOM ALERT MODAL -->
     <div id="customAlertModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center hidden">
         <div class="bg-cardgray border border-laserred/30 p-6 rounded-3xl max-w-xs w-full text-center space-y-4 shadow-2xl">
             <p id="alertMessage" class="text-sm font-bold text-white"></p>
@@ -534,7 +533,7 @@
         </div>
     </div>
 
-    <!-- CUSTOM CONFIRM MODAL (Resolves Mobile iframe confirm freeze) -->
+    <!-- CUSTOM CONFIRM MODAL -->
     <div id="customConfirmModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center hidden">
         <div class="bg-cardgray border border-laserred/30 p-6 rounded-3xl max-w-xs w-full text-center space-y-4 shadow-2xl">
             <p id="confirmMessage" class="text-sm font-bold text-white"></p>
@@ -558,37 +557,59 @@
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ==================================================================================
+        // ⚙️ الإعدادات العامة والسيارات الافتراضية المضافة مسبقاً (مباشرة في الكود)
+        // ==================================================================================
         const SHOWROOM_CONFIG = {
             whatsappNumber: "213550038069",
             facebookLink: "#",
             instagramLink: "#",
             tiktokLink: "#",
-            mapsLink: "https://maps.google.com/?q=El+Oued+Algeria"
+            mapsLink: "https://maps.google.com/?q=El+Oued+Algeria",
+            
+            // 🌟 [هنا يمكنك إضافة سياراتك الحقيقية مباشرة بالروابط] 🌟
+            // لرفع الصور، استخدم موقع مثل postimages.org ثم انسخ الرابط المباشر للصور وضعه هنا!
+            PRE_ADDED_CARS: [
+                {
+                    id: "custom-1",
+                    marque: "HYUNDEI",
+                    modele: "ACCENT",
+                    annee: "2012",
+                    prix: "NEGOCIABLE",
+                    km: "400 000 km",
+                    moteur: "1.6 DIESEL",
+                    boite: "MANUEL",
+                    couleur: "GRIS",
+                    sbiha: "سيارة نظيفة تماماً، خالية من أي صبيغة أو رتوشات.",
+                    sbihaZones: { hood: false, frontDoor: false, backDoor: false, backWing: false, frontWing: false },
+                    negociable: true,
+                    status: "disponible",
+                    images: [
+                        "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80",
+                        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80"
+                    ]
+                },
+                {
+                    id: "custom-2",
+                    marque: "VOLKSWAGEN",
+                    modele: "GOLF 8 GTD",
+                    annee: "2023",
+                    prix: "920M",
+                    km: "22 000 km",
+                    moteur: "2.0 TDI 200ch",
+                    boite: "AUTOMATIQUE",
+                    couleur: "Gris Dauphin",
+                    sbiha: "فيها راكور خفيف في الباب الخلفي الأيمن بدون معجون.",
+                    sbihaZones: { hood: false, frontDoor: false, backDoor: true, backWing: false, frontWing: false },
+                    negociable: true,
+                    status: "disponible",
+                    images: [
+                        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=600&q=80",
+                        "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80"
+                    ]
+                }
+            ]
         };
-
-        const demoWarehouseVehicles = [
-            {
-                id: "1", marque: "TOYOTA", modele: "HILUX Legend", annee: "2024", prix: "890M", km: "12 000 km", moteur: "2.8 D-4D 204ch", boite: "AUTOMATIQUE", couleur: "Blanc Perle",
-                sbiha: "سيارة نظيفة تماماً، خالية من أي صبيغة أو رتوشات.",
-                sbihaZones: { hood: false, frontDoor: false, backDoor: false, backWing: false, frontWing: false },
-                negociable: true, status: "disponible", createdAt: 1718000000000,
-                images: ["https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80", "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80"]
-            },
-            {
-                id: "2", marque: "VOLKSWAGEN", modele: "GOLF 8 GTD", annee: "2023", prix: "920M", km: "22 000 km", moteur: "2.0 TDI 200ch", boite: "AUTOMATIQUE", couleur: "Gris Dauphin",
-                sbiha: "فيها راكور خفيف في الباب الخلفي الأيمن بدون معجون.",
-                sbihaZones: { hood: false, frontDoor: false, backDoor: true, backWing: false, frontWing: false },
-                negociable: true, status: "disponible", createdAt: 1717000000000,
-                images: ["https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=600&q=80", "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80"]
-            },
-            {
-                id: "3", marque: "SEAT", modele: "IBIZA FR Line", annee: "2021", prix: "390M", km: "85 000 km", moteur: "1.6 MPI 110ch", boite: "MANUELLE", couleur: "Rouge Désir",
-                sbiha: "نقية 00 صبيغة، الكابو فيه كربون حماية.",
-                sbihaZones: { hood: false, frontDoor: false, backDoor: false, backWing: false, frontWing: false },
-                negociable: false, status: "vendue", createdAt: 1716000000000,
-                images: ["https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=600&q=80", "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=600&q=80"]
-            }
-        ];
 
         let state = {
             lang: 'ar',
@@ -624,57 +645,87 @@
             }
         };
 
-        // ================= FIREBASE INITIALIZATION & AUTHENTICATION (RULE 3) =================
-        let db, auth, currentUser = null;
+        // ================= HYBRID STORAGE CONTROLLER (FIREBASE OR LOCALSTORAGE FOR GITHUB) =================
+        let db = null, auth = null, currentUser = null, isFirebaseAvailable = false;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'hadj-tayeb-auto';
 
-        const setupFirebase = async () => {
+        const initializeStorageEngine = async () => {
             try {
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+                // التحقق من صلاحية وجود Firebase config (في بيئة جيت هاب ستكون غير معرفة)
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    isFirebaseAvailable = true;
 
-                // التسجيل الفوري لمستمع الحسابات لسرعة المزامنة وقوة الأداء على الهاتف قبل بدء محاولة الدخول
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        currentUser = user;
-                        const vehiclesCollection = collection(db, 'artifacts', appId, 'public', 'data', 'vehicles');
-                        
-                        onSnapshot(vehiclesCollection, (snapshot) => {
-                            let vehiclesList = [];
-                            snapshot.forEach((doc) => {
-                                vehiclesList.push({ id: doc.id, ...doc.data() });
+                    // تفعيل المستمع السحابي
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            currentUser = user;
+                            const vehiclesCollection = collection(db, 'artifacts', appId, 'public', 'data', 'vehicles');
+                            onSnapshot(vehiclesCollection, (snapshot) => {
+                                let cloudList = [];
+                                snapshot.forEach((doc) => {
+                                    cloudList.push({ id: doc.id, ...doc.data() });
+                                });
+                                // دمج السيارات المضافة في الكود مع السحابية
+                                syncShowroomPayload(cloudList);
+                            }, (err) => {
+                                console.error("Firestore Loading Failed:", err);
+                                fallbackToLocalStorageOnly();
                             });
+                        }
+                    });
 
-                            // ترتيب تنازلي في الذاكرة لتجنب استعلامات Firestore المعقدة (RULE 2)
-                            vehiclesList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-                            state.vehicles = vehiclesList;
-                            renderShowroomGrid();
-                            renderAdminStockList();
-                            buildRepriseTargetDropdown();
-                            calculateCorporateSaaSMetrics();
-                        }, (err) => {
-                            console.error("Firestore loading error:", err);
-                        });
+                    // تسجيل الدخول
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth));
                     } else {
-                        currentUser = null;
+                        await signInAnonymously(auth);
                     }
-                });
-
-                // Authenticate (RULE 3)
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth));
                 } else {
-                    await signInAnonymously(auth);
+                    // إذا لم تكن في بيئتنا التجريبية (أي مرفوعة على GitHub)
+                    fallbackToLocalStorageOnly();
                 }
             } catch (err) {
-                console.error("Firebase Initialization Failed:", err);
+                console.warn("Switching instantly to bulletproof LocalStorage engine:", err);
+                fallbackToLocalStorageOnly();
             }
         };
 
-        // ================= CUSTOM IFRAME DIALOG SYSTEM (Resolves mobile freeze) =================
+        // محرك الأمان الاحتياطي (LocalStorage) المخصص لـ GitHub
+        function fallbackToLocalStorageOnly() {
+            isFirebaseAvailable = false;
+            let localData = [];
+            try {
+                localData = JSON.parse(localStorage.getItem('hadj_tayeb_git_db')) || [];
+            } catch (e) {
+                console.error("Localstorage corrupted:", e);
+            }
+            syncShowroomPayload(localData);
+        }
+
+        // دمج السيارات المضافة مسبقاً في الكود مع السيارات التي تم رفعها ومزامنتها
+        function syncShowroomPayload(customUserList) {
+            // تصفية السيارات المضافة مسبقاً لمنع تكرارها
+            const preAddedFiltered = SHOWROOM_CONFIG.PRE_ADDED_CARS.filter(pre => 
+                !customUserList.some(userCar => userCar.id === pre.id)
+            );
+            
+            state.vehicles = [...customUserList, ...preAddedFiltered];
+            
+            // ترتيب تنازلي حسب تاريخ الإضافة
+            state.vehicles.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            // تشغيل الرندر فوراً لإظهار البيانات
+            renderShowroomGrid();
+            renderAdminStockList();
+            buildRepriseTargetDropdown();
+            calculateCorporateSaaSMetrics();
+        }
+
+        // ================= CUSTOM IFRAME DIALOG SYSTEM =================
         window.showCustomConfirm = function(msg, onConfirm) {
             const modal = document.getElementById('customConfirmModal');
             document.getElementById('confirmMessage').innerText = msg;
@@ -885,7 +936,7 @@
             });
         }
 
-        // ================= FIRESTORE CRUD ACTIONS (RULE 1 & RULE 2) =================
+        // ================= WRITE / SAVE NEW LUXURY CAR (HYBRID WORKFLOW) =================
         async function processNewLuxuryCar(e) {
             e.preventDefault();
             const submitBtn = document.getElementById('submitNewCarBtn');
@@ -896,26 +947,7 @@
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-2"></i> جاري الرفع والاتصال بالسيرفر...`;
-
-            // المزامنة الفورية والاحتياطية للتحقق من الحساب (حل مشكلة الهواتف)
-            let activeUser = currentUser || (auth && auth.currentUser);
-            if (!activeUser && auth) {
-                try {
-                    await signInAnonymously(auth);
-                    activeUser = auth.currentUser;
-                    currentUser = activeUser;
-                } catch (authErr) {
-                    console.error("Backup authenticating on upload failed:", authErr);
-                }
-            }
-
-            if (!activeUser) {
-                showCustomAlert("فشل الاتصال: يرجى التأكد من تشغيل الإنترنت في هاتفك، الحساب لم يتصل بشكل صحيح.");
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = `<span>إضافة السيارة للمعرض الآن</span> <i class="fa-solid fa-arrow-left"></i>`;
-                return;
-            }
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-2"></i> جاري الحفظ والتحديث...`;
 
             const freshVehicle = {
                 id: String(Date.now()),
@@ -941,9 +973,22 @@
             };
 
             try {
-                // STRICT PATH (RULE 1)
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', freshVehicle.id);
-                await setDoc(docRef, freshVehicle);
+                if (isFirebaseAvailable && db) {
+                    // الحفظ السحابي
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', freshVehicle.id);
+                    await setDoc(docRef, freshVehicle);
+                } else {
+                    // الحفظ المحلي لبيئة جيت هاب (مضمونة ومحفوظة دائماً)
+                    let currentList = [];
+                    try {
+                        currentList = JSON.parse(localStorage.getItem('hadj_tayeb_git_db')) || [];
+                    } catch (err) {}
+                    currentList.unshift(freshVehicle);
+                    localStorage.setItem('hadj_tayeb_git_db', JSON.stringify(currentList));
+                    
+                    // تحديث الواجهة فوراً
+                    syncShowroomPayload(currentList);
+                }
 
                 document.getElementById('ownerCarForm').reset();
                 state.temporaryImages64 = [];
@@ -951,7 +996,7 @@
                 
                 triggerToastNotification("تمت إضافة السيارة الجديدة للمعرض.");
             } catch (err) {
-                console.error("Error writing document to Firestore:", err);
+                console.error("Error writing document:", err);
                 showCustomAlert("فشل إضافة السيارة، تأكد من استقرار الإنترنت وحجم الصور.");
             } finally {
                 submitBtn.disabled = false;
@@ -962,38 +1007,46 @@
         async function removeInventoryItem(id) {
             showCustomConfirm("هل أنت متأكد من حذف هذه السيارة من الكاتالوج بشكل نهائي؟", async () => {
                 try {
-                    const activeUser = currentUser || (auth && auth.currentUser);
-                    if (!activeUser) {
-                        showCustomAlert("فشل الاتصال: يرجى الانتظار للحظات حتى يتصل حسابك بالشبكة.");
-                        return;
+                    if (isFirebaseAvailable && db) {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
+                        await deleteDoc(docRef);
+                    } else {
+                        // الحذف في وضع جيت هاب
+                        let currentList = JSON.parse(localStorage.getItem('hadj_tayeb_git_db')) || [];
+                        currentList = currentList.filter(car => car.id !== String(id));
+                        localStorage.setItem('hadj_tayeb_git_db', JSON.stringify(currentList));
+                        syncShowroomPayload(currentList);
                     }
-                    // STRICT PATH (RULE 1)
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
-                    await deleteDoc(docRef);
                     triggerToastNotification("تم حذف السيارة من المخزون.");
                 } catch (err) {
-                    console.error("Error deleting from Firestore:", err);
+                    console.error("Error deleting document:", err);
                 }
             });
         }
 
         async function toggleInventoryStatus(id) {
             try {
-                const activeUser = currentUser || (auth && auth.currentUser);
-                if (!activeUser) {
-                    showCustomAlert("فشل الاتصال: يرجى الانتظار للحظات حتى يتصل حسابك بالشبكة.");
-                    return;
+                if (isFirebaseAvailable && db) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
+                    const car = state.vehicles.find(v => v.id === id);
+                    if (!car) return;
+                    const newStatus = car.status === 'disponible' ? 'vendue' : 'disponible';
+                    await updateDoc(docRef, { status: newStatus });
+                } else {
+                    // تعديل الحالة في وضع جيت هاب
+                    let currentList = JSON.parse(localStorage.getItem('hadj_tayeb_git_db')) || [];
+                    currentList = currentList.map(car => {
+                        if (car.id === String(id)) {
+                            car.status = car.status === 'disponible' ? 'vendue' : 'disponible';
+                        }
+                        return car;
+                    });
+                    localStorage.setItem('hadj_tayeb_git_db', JSON.stringify(currentList));
+                    syncShowroomPayload(currentList);
                 }
-                // STRICT PATH (RULE 1)
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
-                const car = state.vehicles.find(v => v.id === id);
-                if (!car) return;
-
-                const newStatus = car.status === 'disponible' ? 'vendue' : 'disponible';
-                await updateDoc(docRef, { status: newStatus });
                 triggerToastNotification("تم تحديث حالة السيارة بنجاح.");
             } catch (err) {
-                console.error("Error updating status in Firestore:", err);
+                console.error("Error updating status:", err);
             }
         }
 
@@ -1301,7 +1354,6 @@
                 </div>`;
             });
 
-            // ربط آمن تماماً داخل الـ ESM module
             state.vehicles.forEach(car => {
                 const toggleInput = document.getElementById(`toggle-inventory-${car.id}`);
                 if (toggleInput) {
@@ -1321,7 +1373,7 @@
             setTimeout(() => { toast.className = "fixed top-6 left-1/2 -translate-x-1/2 z-[100] transform -translate-y-24 opacity-0 transition-all duration-500"; }, 3000);
         }
 
-        // تسجيل الدوال للوصول إليها مباشرة عبر متصفحات الهواتف
+        // Global functions bindings
         window.switchLanguage = switchLanguage;
         window.setBrandScope = setBrandScope;
         window.openDetailSheet = openDetailSheet;
@@ -1338,15 +1390,14 @@
         window.renderShowroomGrid = renderShowroomGrid;
         window.processNewLuxuryCar = processNewLuxuryCar;
 
-        // تشغيل نظام المزامنة والربط السحابي فور تحميل الواجهة
         window.addEventListener('DOMContentLoaded', async () => {
             setupIntelligentHoldAnimation();
             setupHiresOnTheFlyImageCompressor();
             setupConfigurationUrls();
             applyLanguage();
 
-            // الاتصال بقاعدة البيانات مع حماية مضاعفة للهاتف
-            await setupFirebase();
+            // المزامنة والتشغيل الفوري للمحرك المزدوج
+            await initializeStorageEngine();
         });
 
         function setupConfigurationUrls() {
