@@ -330,6 +330,11 @@
         </div>
 
         <main class="p-4 space-y-5" id="cars-grid-feed">
+            <!-- الهيكل المؤقت لتحميل المعرض وحماية الاتصال السحابي -->
+            <div id="showroom-loading-skeleton" class="p-8 text-center space-y-4">
+                <i class="fa-solid fa-circle-notch animate-spin text-laserred text-3xl"></i>
+                <p class="text-xs text-zinc-500 font-bold">جاري تحميل المعرض والاتصال بقاعدة البيانات السحابية...</p>
+            </div>
         </main>
 
         <div class="p-6 border-t border-white/5 bg-neutral-950/40 text-center space-y-6 mt-12 mb-12">
@@ -603,7 +608,7 @@
                 year: "Année", km: "KM", paint: "État Carrosserie", target: "Véhicule souhaité", sendProposal: "Envoyer l'offre",
                 successToast: "Opération traitée avec succès !", errorFields: "Champs obligatoires !", discover: "Catalogue",
                 reprise: "Échange", contact: "Contact", paintedZone: "Zone Peinte (Retouche ou Peinture)", cleanZone: "Zone d'origine (00 Retouche)",
-                touchDetails: "Fiche Véhicule", price: "Prix demandé", engine: "Moteur", color: "Couleur", box: "Boîte",
+                touchDetails: "Fiche Véحicle", price: "Prix demandé", engine: "Moteur", color: "Couleur", box: "Boîte",
                 contactSeller: "Négocier sur WhatsApp", soldBadge: "VENDU", totalBikes: "Total Véhicules"
             },
             ar: {
@@ -629,6 +634,34 @@
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
+
+                // التسجيل الفوري لمستمع الحسابات لسرعة المزامنة وقوة الأداء على الهاتف قبل بدء محاولة الدخول
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        const vehiclesCollection = collection(db, 'artifacts', appId, 'public', 'data', 'vehicles');
+                        
+                        onSnapshot(vehiclesCollection, (snapshot) => {
+                            let vehiclesList = [];
+                            snapshot.forEach((doc) => {
+                                vehiclesList.push({ id: doc.id, ...doc.data() });
+                            });
+
+                            // ترتيب تنازلي في الذاكرة لتجنب استعلامات Firestore المعقدة (RULE 2)
+                            vehiclesList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+                            state.vehicles = vehiclesList;
+                            renderShowroomGrid();
+                            renderAdminStockList();
+                            buildRepriseTargetDropdown();
+                            calculateCorporateSaaSMetrics();
+                        }, (err) => {
+                            console.error("Firestore loading error:", err);
+                        });
+                    } else {
+                        currentUser = null;
+                    }
+                });
 
                 // Authenticate (RULE 3)
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -772,7 +805,6 @@
                             const canvas = document.createElement('canvas');
                             const ctx = canvas.getContext('2d');
                             
-                            // Diminuer les dimensions pour le mobile (Max 600px)
                             const maxDim = 600;
                             let width = img.width;
                             let height = img.height;
@@ -793,12 +825,10 @@
                             canvas.height = height;
                             ctx.drawImage(img, 0, 0, width, height);
                             
-                            // Compression agressive (JPEG 0.45 pour un chargement instantané)
                             let quality = 0.45;
                             let base64 = canvas.toDataURL('image/jpeg', quality);
                             let sizeInKB = (base64.length * 0.75) / 1024;
                             
-                            // S'assurer que l'image ne dépasse jamais 150KB
                             while (sizeInKB > 150 && quality > 0.15) {
                                 quality -= 0.05;
                                 base64 = canvas.toDataURL('image/jpeg', quality);
@@ -865,9 +895,27 @@
                 return;
             }
 
-            // Désactiver le bouton et afficher l'animation de chargement
             submitBtn.disabled = true;
             submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-2"></i> جاري الرفع والاتصال بالسيرفر...`;
+
+            // المزامنة الفورية والاحتياطية للتحقق من الحساب (حل مشكلة الهواتف)
+            let activeUser = currentUser || (auth && auth.currentUser);
+            if (!activeUser && auth) {
+                try {
+                    await signInAnonymously(auth);
+                    activeUser = auth.currentUser;
+                    currentUser = activeUser;
+                } catch (authErr) {
+                    console.error("Backup authenticating on upload failed:", authErr);
+                }
+            }
+
+            if (!activeUser) {
+                showCustomAlert("فشل الاتصال: يرجى التأكد من تشغيل الإنترنت في هاتفك، الحساب لم يتصل بشكل صحيح.");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<span>إضافة السيارة للمعرض الآن</span> <i class="fa-solid fa-arrow-left"></i>`;
+                return;
+            }
 
             const freshVehicle = {
                 id: String(Date.now()),
@@ -893,13 +941,6 @@
             };
 
             try {
-                if (!currentUser) {
-                    showCustomAlert("فشل الاتصال: لم يتم التعرف على الحساب.");
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = `<span>إضافة السيارة للمعرض الآن</span> <i class="fa-solid fa-arrow-left"></i>`;
-                    return;
-                }
-                
                 // STRICT PATH (RULE 1)
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', freshVehicle.id);
                 await setDoc(docRef, freshVehicle);
@@ -921,7 +962,11 @@
         async function removeInventoryItem(id) {
             showCustomConfirm("هل أنت متأكد من حذف هذه السيارة من الكاتالوج بشكل نهائي؟", async () => {
                 try {
-                    if (!currentUser) return;
+                    const activeUser = currentUser || (auth && auth.currentUser);
+                    if (!activeUser) {
+                        showCustomAlert("فشل الاتصال: يرجى الانتظار للحظات حتى يتصل حسابك بالشبكة.");
+                        return;
+                    }
                     // STRICT PATH (RULE 1)
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
                     await deleteDoc(docRef);
@@ -934,7 +979,11 @@
 
         async function toggleInventoryStatus(id) {
             try {
-                if (!currentUser) return;
+                const activeUser = currentUser || (auth && auth.currentUser);
+                if (!activeUser) {
+                    showCustomAlert("فشل الاتصال: يرجى الانتظار للحظات حتى يتصل حسابك بالشبكة.");
+                    return;
+                }
                 // STRICT PATH (RULE 1)
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', String(id));
                 const car = state.vehicles.find(v => v.id === id);
@@ -1252,7 +1301,7 @@
                 </div>`;
             });
 
-            // Bind events safely inside ESM module
+            // ربط آمن تماماً داخل الـ ESM module
             state.vehicles.forEach(car => {
                 const toggleInput = document.getElementById(`toggle-inventory-${car.id}`);
                 if (toggleInput) {
@@ -1272,7 +1321,7 @@
             setTimeout(() => { toast.className = "fixed top-6 left-1/2 -translate-x-1/2 z-[100] transform -translate-y-24 opacity-0 transition-all duration-500"; }, 3000);
         }
 
-        // Global registration for inline HTML calls
+        // تسجيل الدوال للوصول إليها مباشرة عبر متصفحات الهواتف
         window.switchLanguage = switchLanguage;
         window.setBrandScope = setBrandScope;
         window.openDetailSheet = openDetailSheet;
@@ -1289,56 +1338,15 @@
         window.renderShowroomGrid = renderShowroomGrid;
         window.processNewLuxuryCar = processNewLuxuryCar;
 
-        // Initialization
+        // تشغيل نظام المزامنة والربط السحابي فور تحميل الواجهة
         window.addEventListener('DOMContentLoaded', async () => {
             setupIntelligentHoldAnimation();
             setupHiresOnTheFlyImageCompressor();
             setupConfigurationUrls();
             applyLanguage();
 
-            // Firebase Connection
+            // الاتصال بقاعدة البيانات مع حماية مضاعفة للهاتف
             await setupFirebase();
-
-            // REAL-TIME FIRESTORE WORKFLOW (RULE 1 & RULE 2 & RULE 3)
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    const vehiclesCollection = collection(db, 'artifacts', appId, 'public', 'data', 'vehicles');
-                    
-                    // Simple Firestore Query (RULE 2)
-                    onSnapshot(vehiclesCollection, (snapshot) => {
-                        let vehiclesList = [];
-                        snapshot.forEach((doc) => {
-                            vehiclesList.push({ id: doc.id, ...doc.data() });
-                        });
-
-                        // Sort list descendingly by creation date in memory (RULE 2)
-                        vehiclesList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-                        // Seed initial demo data on first-ever load
-                        if (vehiclesList.length === 0) {
-                            state.vehicles = demoWarehouseVehicles;
-                            renderShowroomGrid();
-                            renderAdminStockList();
-                            buildRepriseTargetDropdown();
-                            calculateCorporateSaaSMetrics();
-
-                            demoWarehouseVehicles.forEach(async (v) => {
-                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', v.id);
-                                await setDoc(docRef, v);
-                            });
-                        } else {
-                            state.vehicles = vehiclesList;
-                            renderShowroomGrid();
-                            renderAdminStockList();
-                            buildRepriseTargetDropdown();
-                            calculateCorporateSaaSMetrics();
-                        }
-                    }, (err) => {
-                        console.error("Firestore loading error:", err);
-                    });
-                }
-            });
         });
 
         function setupConfigurationUrls() {
