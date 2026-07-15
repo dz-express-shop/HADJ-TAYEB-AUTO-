@@ -297,7 +297,7 @@
                     <input type="text" id="addPaintVerdict" placeholder="وصف حالة الطلاء (مثال: نقية، 00 صبيغة...)" required class="w-full bg-black rounded-lg p-3 text-xs text-white border border-white/5 focus:border-laserred transition-all">
                 </div>
 
-                <div class="relative w-full bg-cardgray border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-laserred transition-all group">
+                <div class="relative w-full bg-cardgray border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-laserred transition-all group cursor-pointer">
                     <input type="file" id="imageInputLoader" accept="image/*" multiple required class="absolute inset-0 opacity-0 cursor-pointer z-10">
                     <div class="w-12 h-12 rounded-full bg-laserred/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <i class="fa-solid fa-cloud-arrow-up text-laserred text-xl"></i>
@@ -305,8 +305,8 @@
                     <span id="compressorLog" class="text-[10px] text-zinc-400 font-bold text-center">اضغط لرفع صور السيارة بجودة عالية<br><span class="text-zinc-600">(يتم ضغطها تلقائياً لتسريع الموقع)</span></span>
                 </div>
 
-                <button type="submit" class="w-full bg-laserred hover:bg-red-600 text-whitepure py-4 rounded-xl font-black text-sm shadow-[0_5px_20px_rgba(255,0,60,0.3)] transition-all active:scale-95">
-                    إضافة السيارة للمعرض الآن <i class="fa-solid fa-arrow-left ml-2"></i>
+                <button type="submit" id="submitNewCarBtn" class="w-full bg-laserred hover:bg-red-600 text-whitepure py-4 rounded-xl font-black text-sm shadow-[0_5px_20px_rgba(255,0,60,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <span>إضافة السيارة للمعرض الآن</span> <i class="fa-solid fa-arrow-left"></i>
                 </button>
             </form>
 
@@ -761,64 +761,95 @@
             document.getElementById('analyticsTotalValue').innerText = accumulatedValue.toFixed(0) + " M";
         }
 
-        // ================= HI-RES ON-THE-FLY CANVAS COMPRESSION ENGINE =================
+        // ================= ULTRA-SAFE & AGGRESSIVE IMAGE COMPRESSION ENGINE =================
+        async function compressImageAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            // Diminuer les dimensions pour le mobile (Max 600px)
+                            const maxDim = 600;
+                            let width = img.width;
+                            let height = img.height;
+                            
+                            if (width > height) {
+                                if (width > maxDim) {
+                                    height = Math.round(height * (maxDim / width));
+                                    width = maxDim;
+                                }
+                            } else {
+                                if (height > maxDim) {
+                                    width = Math.round(width * (maxDim / height));
+                                    height = maxDim;
+                                }
+                            }
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            // Compression agressive (JPEG 0.45 pour un chargement instantané)
+                            let quality = 0.45;
+                            let base64 = canvas.toDataURL('image/jpeg', quality);
+                            let sizeInKB = (base64.length * 0.75) / 1024;
+                            
+                            // S'assurer que l'image ne dépasse jamais 150KB
+                            while (sizeInKB > 150 && quality > 0.15) {
+                                quality -= 0.05;
+                                base64 = canvas.toDataURL('image/jpeg', quality);
+                                sizeInKB = (base64.length * 0.75) / 1024;
+                            }
+                            
+                            resolve(base64);
+                        } catch (err) {
+                            resolve(createFallbackThumbnail(img));
+                        }
+                    };
+                    img.onerror = () => reject(new Error("Image Load Error"));
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(new Error("File Read Error"));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function createFallbackThumbnail(img) {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 150;
+                canvas.height = 150;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 150, 150);
+                return canvas.toDataURL('image/jpeg', 0.3);
+            } catch (e) {
+                return "";
+            }
+        }
+
         function setupHiresOnTheFlyImageCompressor() {
-            document.getElementById('imageInputLoader').addEventListener('change', function(e) {
+            document.getElementById('imageInputLoader').addEventListener('change', async function(e) {
                 const files = e.target.files;
                 state.temporaryImages64 = [];
                 if (files.length > 0) {
-                    document.getElementById('compressorLog').innerText = `جاري ضغط ومعالجة 0/${files.length} صور...`;
+                    document.getElementById('compressorLog').innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-laserred mr-2"></i> جاري معالجة وضغط الصور...`;
                     let resolved = 0;
 
                     for (let i = 0; i < files.length; i++) {
-                        const file = files[i];
-                        const reader = new FileReader();
-                        reader.onload = function(evt) {
-                            const img = new Image();
-                            img.onload = function() {
-                                try {
-                                    const canvas = document.createElement('canvas');
-                                    const ctx = canvas.getContext('2d');
-                                    
-                                    const limitDim = 800;
-                                    let w = img.width;
-                                    let h = img.height;
-                                    
-                                    if (w > h) {
-                                        if (w > limitDim) {
-                                            h *= limitDim / w;
-                                            w = limitDim;
-                                        }
-                                    } else {
-                                        if (h > limitDim) {
-                                            w *= limitDim / h;
-                                            h = limitDim;
-                                        }
-                                    }
-
-                                    canvas.width = w;
-                                    canvas.height = h;
-                                    ctx.drawImage(img, 0, 0, w, h);
-                                    
-                                    const base64Webp = canvas.toDataURL('image/jpeg', 0.65);
-                                    state.temporaryImages64.push(base64Webp);
-                                    resolved++;
-                                    document.getElementById('compressorLog').innerText = `تم تجهيز ${resolved}/${files.length} صور بنجاح`;
-                                } catch (err) {
-                                    // Fallback immediately on mobile compression memory limit error
-                                    state.temporaryImages64.push(evt.target.result);
-                                    resolved++;
-                                    document.getElementById('compressorLog').innerText = `تم تجهيز ${resolved}/${files.length} صور بنجاح`;
-                                }
-                            };
-                            img.onerror = function() {
-                                state.temporaryImages64.push(evt.target.result);
-                                resolved++;
-                                document.getElementById('compressorLog').innerText = `تم تجهيز ${resolved}/${files.length} صور`;
-                            };
-                            img.src = evt.target.result;
-                        };
-                        reader.readAsDataURL(file);
+                        try {
+                            const base64 = await compressImageAsync(files[i]);
+                            if (base64) {
+                                state.temporaryImages64.push(base64);
+                            }
+                            resolved++;
+                            document.getElementById('compressorLog').innerText = `تم تجهيز وتحسين ${resolved}/${files.length} صور بنجاح`;
+                        } catch (err) {
+                            console.error("Compression Failed, skipping file", err);
+                        }
                     }
                 }
             });
@@ -827,10 +858,16 @@
         // ================= FIRESTORE CRUD ACTIONS (RULE 1 & RULE 2) =================
         async function processNewLuxuryCar(e) {
             e.preventDefault();
+            const submitBtn = document.getElementById('submitNewCarBtn');
+            
             if (state.temporaryImages64.length === 0) {
                 showCustomAlert("يرجى إرفاق صورة واحدة على الأقل للسيارة.");
                 return;
             }
+
+            // Désactiver le bouton et afficher l'animation de chargement
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-2"></i> جاري الرفع والاتصال بالسيرفر...`;
 
             const freshVehicle = {
                 id: String(Date.now()),
@@ -856,7 +893,13 @@
             };
 
             try {
-                if (!currentUser) return;
+                if (!currentUser) {
+                    showCustomAlert("فشل الاتصال: لم يتم التعرف على الحساب.");
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<span>إضافة السيارة للمعرض الآن</span> <i class="fa-solid fa-arrow-left"></i>`;
+                    return;
+                }
+                
                 // STRICT PATH (RULE 1)
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', freshVehicle.id);
                 await setDoc(docRef, freshVehicle);
@@ -868,7 +911,10 @@
                 triggerToastNotification("تمت إضافة السيارة الجديدة للمعرض.");
             } catch (err) {
                 console.error("Error writing document to Firestore:", err);
-                showCustomAlert("فشل إضافة السيارة، يرجى المحاولة مرة أخرى.");
+                showCustomAlert("فشل إضافة السيارة، تأكد من استقرار الإنترنت وحجم الصور.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<span>إضافة السيارة للمعرض الآن</span> <i class="fa-solid fa-arrow-left"></i>`;
             }
         }
 
@@ -1271,6 +1317,12 @@
 
                         // Seed initial demo data on first-ever load
                         if (vehiclesList.length === 0) {
+                            state.vehicles = demoWarehouseVehicles;
+                            renderShowroomGrid();
+                            renderAdminStockList();
+                            buildRepriseTargetDropdown();
+                            calculateCorporateSaaSMetrics();
+
                             demoWarehouseVehicles.forEach(async (v) => {
                                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicles', v.id);
                                 await setDoc(docRef, v);
